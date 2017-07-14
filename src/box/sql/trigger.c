@@ -60,6 +60,9 @@ void sqlite3BeginTrigger(
   sqlite3 *db = pParse->db;  /* The database connection */
   Token *pName;           /* The unqualified db name */
   DbFixer sFix;           /* State vector for the DB fixer */
+  static const char * sysTables[] = { "_trigger", "_space", "_index" };
+  int sysTablesAmount = 3;
+  int iSysTable;
 
   /* Do not account nested operations: the count of such
   ** operations depends on Tarantool data dictionary internals,
@@ -128,9 +131,11 @@ void sqlite3BeginTrigger(
   }
 
   /* Do not create a trigger on a system table */
-  if( sqlite3StrNICmp(pTab->zName, "sqlite_", 7)==0 ){
-    sqlite3ErrorMsg(pParse, "cannot create trigger on system table");
-    goto trigger_cleanup;
+  for (iSysTable = 0; iSysTable < sysTablesAmount; iSysTable++) {
+    if ( sqlite3StrNICmp(pTab->zName, sysTables[iSysTable], strlen(sysTables[iSysTable]))== 0 ) {
+      sqlite3ErrorMsg(pParse, "cannot create trigger on system table");
+      goto trigger_cleanup;
+    }
   }
 
   /* INSTEAD of triggers are only for views and views only support INSTEAD
