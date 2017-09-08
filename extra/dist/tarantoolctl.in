@@ -42,6 +42,7 @@ local console_sock
 local group_name
 -- overrides for defaults files
 local instance_dir
+local systemd_forward
 local default_cfg
 local positional_arguments
 local keyword_arguments
@@ -137,6 +138,7 @@ local function load_default_file(default_file)
         end
         default_cfg = env.default_cfg
         instance_dir = env.instance_dir
+        systemd_forward = env.systemd_forward
     end
     local d = default_cfg or {}
 
@@ -155,6 +157,10 @@ local function load_default_file(default_file)
     d.log       = fio.pathjoin(d.log,       instance_name .. '.log')
 
     default_cfg = d
+
+    if systemd_forward == nil then
+        systemd_forward = true
+    end
 
     if not usermode then
         -- change user name only if not running locally
@@ -296,7 +302,7 @@ end
 
 -- systemd detection based on http://unix.stackexchange.com/a/164092
 local function under_systemd()
-    if not usermode then
+    if not usermode and systemd_forward then
         local rv = os.execute("systemctl 2>/dev/null | grep '\\-\\.mount' " ..
                               "1>/dev/null 2>/dev/null")
         if rv == 0 then
