@@ -459,6 +459,36 @@ say_encode_tarantool_header(char *buf, int len, struct tm *tm, ev_tstamp now,
 }
 
 void
+say_plain(int level, const char* buf, size_t len)
+{
+	if (logger_type != SAY_LOGGER_SYSLOG) {
+		(void) write(log_fd, buf, len);
+	} else if (log_fd < 0 || write(log_fd, buf, len) <= 0) {
+		/*
+		 * Try to reconnect, if write to syslog has
+		 * failed. Syslog write can fail, if, for example,
+		 * syslogd is restarted. In such a case write to
+		 * UNIX socket starts return -1 even for UDP.
+		 */
+		if (log_fd >= 0)
+			close(log_fd);
+		log_fd = say_syslog_connect();
+		if (log_fd >= 0) {
+			/*
+			 * In a case or error the log message is
+			 * lost. We can not wait for connection -
+			 * it would block thread. Try to reconnect
+			 * on next vsay().
+			 */
+			(void) write(log_fd, buf, len);
+		}
+	}
+
+	if (level == S_FATAL && log_fd != STDERR_FILENO)
+		(void) write(STDERR_FILENO, buf, len);
+}
+
+void
 vsay(int level, const char *filename, int line, const char *error,
      const char *format, va_list ap)
 {
@@ -514,31 +544,7 @@ vsay(int level, const char *filename, int line, const char *error,
 	if (p >= len - 1)
 		p = len - 1;
 	*(buf + p) = '\n';
-	if (logger_type != SAY_LOGGER_SYSLOG) {
-		(void) write(log_fd, buf, p + 1);
-	} else if (log_fd < 0 || write(log_fd, buf, p + 1) <= 0) {
-		/*
-		 * Try to reconnect, if write to syslog has
-		 * failed. Syslog write can fail, if, for example,
-		 * syslogd is restarted. In such a case write to
-		 * UNIX socket starts return -1 even for UDP.
-		 */
-		if (log_fd >= 0)
-			close(log_fd);
-		log_fd = say_syslog_connect();
-		if (log_fd >= 0) {
-			/*
-			 * In a case or error the log message is
-			 * lost. We can not wait for connection -
-			 * it would block thread. Try to reconnect
-			 * on next vsay().
-			 */
-			(void) write(log_fd, buf, p + 1);
-		}
-	}
-
-	if (level == S_FATAL && log_fd != STDERR_FILENO)
-		(void) write(STDERR_FILENO, buf, p + 1);
+	say_plain(level, buf, p+1);
 }
 
 static void

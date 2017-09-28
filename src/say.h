@@ -80,6 +80,9 @@ void say_logger_init(const char *init_str,
 void
 say_logger_free();
 
+extern void
+say_plain(int level, const char* buf, size_t len);
+
 CFORMAT(printf, 5, 0) void
 vsay(int level, const char *filename, int line, const char *error,
      const char *format, va_list ap);
