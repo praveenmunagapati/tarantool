@@ -11,11 +11,11 @@
 /*
  * Tarantool system spaces.
  */
-#define TARANTOOL_SYS_SCHEMA_NAME  "_schema"
-#define TARANTOOL_SYS_SPACE_NAME   "_space"
-#define TARANTOOL_SYS_INDEX_NAME   "_index"
-#define TARANTOOL_SYS_TRIGGER_NAME "_trigger"
-#define TARANTOOL_SYS_TRUNCATE_NAME "_truncate"
+#define TARANTOOL_SYS_SCHEMA_NAME  "_SCHEMA"
+#define TARANTOOL_SYS_SPACE_NAME   "_SPACE"
+#define TARANTOOL_SYS_INDEX_NAME   "_INDEX"
+#define TARANTOOL_SYS_TRIGGER_NAME "_TRIGGER"
+#define TARANTOOL_SYS_TRUNCATE_NAME "_TRUNCATE"
 
 /* Max space id seen so far. */
 #define TARANTOOL_SYS_SCHEMA_MAXID_KEY "max_id"
