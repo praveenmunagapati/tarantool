@@ -56,13 +56,14 @@ access_check_func(const char *name, uint32_t name_len)
 	if ((credentials->universal_access & PRIV_ALL) == PRIV_ALL)
 		return func;
 	uint8_t access = PRIV_X & ~credentials->universal_access;
-	if (func == NULL || (func->def->uid != credentials->uid &&
-	     access & ~func->access[credentials->auth_token].effective)) {
+	if (func == NULL || (((func->def->uid != credentials->uid &&
+	     access & ~func->access[credentials->auth_token].effective)))) {
 		/* Access violation, report error. */
 		struct user *user = user_find_xc(credentials->uid);
-		tnt_raise(ClientError, ER_FUNCTION_ACCESS_DENIED,
+		diag_set(ClientError, ER_FUNCTION_ACCESS_DENIED,
 			  priv_name(access), user->def->name,
 			  tt_cstr(name, name_len));
+		return NULL;
 	}
 
 	return func;
@@ -132,8 +133,22 @@ error:
 int
 box_func_reload(const char *name)
 {
+	if (name == NULL) {
+		return -1;
+	}
 	size_t name_len = strlen(name);
+
+	/** save old error */
+	error *old_error = diag_get()->last;
+	diag_get()->last = NULL;
 	struct func *func = access_check_func(name, name_len);
+	if (func == NULL) {
+		if (diag_is_empty(diag_get()))
+			diag_set(ClientError, ER_NO_SUCH_FUNCTION, name);
+		return -1;
+	}
+	/** recover error */
+	diag_get()->last = old_error;
 	if (func->def->language != FUNC_LANGUAGE_C || func->func == NULL)
 		return 0; /* Nothing to do */
 	if (func_reload(func) == 0)
@@ -151,12 +166,21 @@ box_process_call(struct call_request *request, struct obuf *out)
 	const char *name = request->name;
 	assert(name != NULL);
 	uint32_t name_len = mp_decode_strl(&name);
+
+	/** save old error */
+	error *old_error = diag_get()->last;
+	diag_get()->last = NULL;
 	struct func *func = access_check_func(name, name_len);
-	/*
+	/**
 	 * Sic: func == NULL means that perhaps the user has a global
 	 * "EXECUTE" privilege, so no specific grant to a function.
+	 * But if error was created during function search, exception should be raised
 	 */
-
+	if (func == NULL && !diag_is_empty(diag_get())) {
+		diag_raise();
+	}
+	/** recover error */
+	diag_get()->last = old_error;
 	/**
 	 * Change the current user id if the function is
 	 * a set-definer-uid one. If the function is not
