@@ -926,9 +926,15 @@ sqlite3Insert(Parse * pParse,	/* Parser context */
 			if ((!useTempTable && !pList)
 			    || (pColumn && j >= pColumn->nId)
 			    || (pColumn == 0
-				&& IsOrdinaryHiddenColumn(&pTab->aCol[i]))) {
-				sqlite3ExprCode(pParse, pTab->aCol[i].pDflt,
-						regCols + i + 1);
+			    && IsOrdinaryHiddenColumn(&pTab->aCol[i]))) {
+				if (i == pTab->iAutoIncPKey &&
+				    (pTab->tabFlags & TF_Autoincrement))
+					sqlite3VdbeAddOp2(v, OP_Integer, -1,
+							regCols + i + 1);
+				else
+					sqlite3ExprCode(pParse,
+							pTab->aCol[i].pDflt,
+							regCols + i + 1);
 			} else if (useTempTable) {
 				sqlite3VdbeAddOp3(v, OP_Column, srcTab, j,
 						  regCols + i + 1);
@@ -1028,8 +1034,7 @@ sqlite3Insert(Parse * pParse,	/* Parser context */
 				 * w/ corresponding value extracted from
 				 * _sql_sequence for given index later.
 				 */
-				if ((pTab->tabFlags & TF_Autoincrement)
-				    && (ipkColumn == -1)) {
+				if (ipkColumn == -1) {
 					sqlite3VdbeAddOp2(v,
 							  OP_FCopy,
 							  regAutoinc,

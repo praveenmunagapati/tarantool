@@ -1245,15 +1245,17 @@ sqlite3AddPrimaryKey(Parse * pParse,	/* Parsing context */
 		}
 	}
 	pTab->iAutoIncPKey = -1;
+	assert(autoInc == 0 || autoInc == 1);
 	if (nTerm == 1
 	    && pCol
 	    && sqlite3StrICmp(sqlite3ColumnType(pCol, ""), "INTEGER") == 0
 	    && sortOrder != SQLITE_SO_DESC) {
 		pTab->iPKey = iCol;
-		pTab->iAutoIncPKey = iCol;
 		pTab->keyConf = (u8) onError;
-		assert(autoInc == 0 || autoInc == 1);
-		pTab->tabFlags |= autoInc * TF_Autoincrement;
+		if (autoInc) {
+			pTab->iAutoIncPKey = iCol;
+			pTab->tabFlags |= TF_Autoincrement;
+		}
 		if (pList)
 			pParse->iPkSortOrder = pList->a[0].sortOrder;
 	} else if (autoInc) {

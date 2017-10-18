@@ -122,7 +122,7 @@ if (1 > 0)
         "insert3-2.1",
         [[
             CREATE TABLE t2(
-              a INTEGER PRIMARY KEY,
+              a INTEGER PRIMARY KEY AUTOINCREMENT,
               b DEFAULT 'b',
               c DEFAULT 'c'
             );
@@ -133,7 +133,7 @@ if (1 > 0)
             INSERT INTO t2(a) VALUES(123);
             INSERT INTO t2(b) VALUES(234);
             INSERT INTO t2(c) VALUES(345);
-            SELECT * FROM t2dup;
+            SELECT a, b, c FROM t2dup;
         ]], {
             -- <insert3-2.1>
             123, "b", "c", -1, 234, "c", -1, "b", 345
@@ -147,7 +147,7 @@ if (1 > 0)
             INSERT INTO t2(a) SELECT 1 FROM t1 LIMIT 1;
             INSERT INTO t2(b) SELECT 987 FROM t1 LIMIT 1;
             INSERT INTO t2(c) SELECT 876 FROM t1 LIMIT 1;
-            SELECT * FROM t2dup;
+            SELECT a, b, c FROM t2dup;
         ]], {
             -- <insert3-2.2>
             1, "b", "c", -1, 987, "c", -1, "b", 876
@@ -159,7 +159,7 @@ if (1 > 0)
     test:do_execsql_test(
         "insert3-3.1",
         [[
-            CREATE TABLE t3(a,b,c);
+            CREATE TABLE t3(a INT PRIMARY KEY,b,c);
             CREATE TRIGGER t3r1 BEFORE INSERT on t3 WHEN nosuchcol BEGIN
               SELECT 'illegal WHEN clause';
             END;
@@ -181,7 +181,7 @@ if (1 > 0)
     test:do_execsql_test(
         "insert3-3.3",
         [[
-            CREATE TABLE t4(a,b,c);
+            CREATE TABLE t4(a INT PRIMARY KEY,b,c);
             CREATE TRIGGER t4r1 AFTER INSERT on t4 WHEN nosuchcol BEGIN
               SELECT 'illegal WHEN clause';
             END;
@@ -210,7 +210,7 @@ if (1 > 0)
         "insert3-3.5",
         [[
             CREATE TABLE t5(
-              a INTEGER PRIMARY KEY,
+              a INTEGER PRIMARY KEY AUTOINCREMENT,
               b DEFAULT 'xyz'
             );
             INSERT INTO t5 DEFAULT VALUES;
@@ -235,12 +235,34 @@ if (1 > 0)
     test:do_execsql_test(
         "insert3-3.7",
         [[
-            CREATE TABLE t6(x,y DEFAULT 4.3, z DEFAULT x'6869');
+            CREATE TABLE t6(x INTEGER PRIMARY KEY AUTOINCREMENT, y DEFAULT 4.3, z DEFAULT x'6869');
             INSERT INTO t6 DEFAULT VALUES;
             SELECT * FROM t6;
         ]], {
             -- <insert3-3.7>
-            "", 4.3, "hi"
+            1, 4.3, "hi"
+            -- </insert3-3.7>
+        })
+
+    test:do_catchsql_test(
+        "insert3-3.8",
+        [[
+            CREATE TABLE t7(x INTEGER PRIMARY KEY, y DEFAULT 4.3, z DEFAULT x'6869');
+            INSERT INTO t7 DEFAULT VALUES;
+        ]], {
+            -- <insert3-3.7>
+            1, "NOT NULL constraint failed: t7.x"
+            -- </insert3-3.7>
+        })
+
+    test:do_catchsql_test(
+        "insert3-3.8",
+        [[
+            CREATE TABLE t8(x INT PRIMARY KEY, y DEFAULT 4.3, z DEFAULT x'6869');
+            INSERT INTO t8 DEFAULT VALUES;
+        ]], {
+            -- <insert3-3.7>
+            1, "NOT NULL constraint failed: t8.x"
             -- </insert3-3.7>
         })
 
