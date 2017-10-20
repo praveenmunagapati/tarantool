@@ -4418,7 +4418,6 @@ case OP_InsertInt: {
 	Mem *pKey;        /* MEM cell holding key  for the record */
 	VdbeCursor *pC;   /* Cursor to table into which insert is written */
 	int seekResult;   /* Result of prior seek or 0 if no USESEEKRESULT flag */
-	const char *zDb;  /* database name - used by the update hook */
 	Table *pTab;      /* Table structure - used by update and pre-update hooks */
 	int op;           /* Opcode for update hook: SQLITE_UPDATE or SQLITE_INSERT */
 	BtreePayload x;   /* Payload to be inserted */
@@ -4449,13 +4448,11 @@ case OP_InsertInt: {
 	if (pOp->p4type==P4_TABLE && HAS_UPDATE_HOOK(db)) {
 		assert(pC->isTable);
 		assert(pC->iDb==0);
-		zDb = db->mdb.zDbSName;
 		pTab = pOp->p4.pTab;
 		assert(HasRowid(pTab));
 		op = ((pOp->p5 & OPFLAG_ISUPDATE) ? SQLITE_UPDATE : SQLITE_INSERT);
 	} else {
 		pTab = 0; /* Not needed.  Silence a comiler warning. */
-		zDb = 0;  /* Not needed.  Silence a compiler warning. */
 	}
 
 #ifdef SQLITE_ENABLE_PREUPDATE_HOOK
@@ -4464,7 +4461,7 @@ case OP_InsertInt: {
 	    && pOp->p4type==P4_TABLE
 	    && !(pOp->p5 & OPFLAG_ISUPDATE)
 		) {
-		sqlite3VdbePreUpdateHook(p, pC, SQLITE_INSERT, zDb, pTab, x.nKey, pOp->p2);
+		sqlite3VdbePreUpdateHook(p, pC, SQLITE_INSERT, 0, pTab, x.nKey, pOp->p2);
 	}
 #endif
 
@@ -4494,7 +4491,7 @@ case OP_InsertInt: {
 	/* Invoke the update-hook if required. */
 	if (rc) goto abort_due_to_error;
 	if (db->xUpdateCallback && op) {
-		db->xUpdateCallback(db->pUpdateArg, op, zDb, pTab->zName, x.nKey);
+		db->xUpdateCallback(db->pUpdateArg, op, 0, pTab->zName, x.nKey);
 	}
 	break;
 }
@@ -4536,7 +4533,6 @@ case OP_InsertInt: {
  */
 case OP_Delete: {
 	VdbeCursor *pC;
-	const char *zDb;
 	Table *pTab;
 	int opflags;
 
@@ -4568,13 +4564,11 @@ case OP_Delete: {
 	if (pOp->p4type==P4_TABLE && HAS_UPDATE_HOOK(db)) {
 		assert(pC->iDb==0);
 		assert(pOp->p4.pTab!=0);
-		zDb = db->mdb.zDbSName;
 		pTab = pOp->p4.pTab;
 		if ((pOp->p5 & OPFLAG_SAVEPOSITION)!=0 && pC->isTable) {
 			pC->movetoTarget = sqlite3BtreeIntegerKey(pC->uc.pCursor);
 		}
 	} else {
-		zDb = 0;   /* Not needed.  Silence a compiler warning. */
 		pTab = 0;  /* Not needed.  Silence a compiler warning. */
 	}
 
@@ -4584,7 +4578,7 @@ case OP_Delete: {
 		assert(!(opflags & OPFLAG_ISUPDATE) || (aMem[pOp->p3].flags & MEM_Int));
 		sqlite3VdbePreUpdateHook(p, pC,
 					 (opflags & OPFLAG_ISUPDATE) ? SQLITE_UPDATE : SQLITE_DELETE,
-					 zDb, pTab, pC->movetoTarget,
+					 0, pTab, pC->movetoTarget,
 					 pOp->p3
 			);
 	}
@@ -4619,7 +4613,7 @@ case OP_Delete: {
 	if (opflags & OPFLAG_NCHANGE) {
 		p->nChange++;
 		if (db->xUpdateCallback && HasRowid(pTab)) {
-			db->xUpdateCallback(db->pUpdateArg, SQLITE_DELETE, zDb, pTab->zName,
+			db->xUpdateCallback(db->pUpdateArg, SQLITE_DELETE, 0, pTab->zName,
 					    pC->movetoTarget);
 			assert(pC->iDb>=0);
 		}

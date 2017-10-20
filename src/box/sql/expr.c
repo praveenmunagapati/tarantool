@@ -1578,7 +1578,6 @@ sqlite3SrcListDup(sqlite3 * db, SrcList * p, int flags)
 		struct SrcList_item *pOldItem = &p->a[i];
 		Table *pTab;
 		pNewItem->pSchema = pOldItem->pSchema;
-		pNewItem->zDatabase = sqlite3DbStrDup(db, pOldItem->zDatabase);
 		pNewItem->zName = sqlite3DbStrDup(db, pOldItem->zName);
 		pNewItem->zAlias = sqlite3DbStrDup(db, pOldItem->zAlias);
 		pNewItem->fg = pOldItem->fg;

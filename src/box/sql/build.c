@@ -403,7 +403,6 @@ sqlite3LocateTable(Parse * pParse,	/* context in which to report errors */
 Table *
 sqlite3LocateTableItem(Parse * pParse, u32 flags, struct SrcList_item * p)
 {
-	assert(p->pSchema == 0 || p->zDatabase == 0);
 	return sqlite3LocateTable(pParse, flags, p->zName);
 }
 
@@ -2664,8 +2663,7 @@ sqlite3DropTable(Parse * pParse, SrcList * pName, int isView, int noErr)
 
 	if (pTab == 0) {
 		if (noErr)
-			sqlite3CodeVerifyNamedSchema(pParse,
-						     pName->a[0].zDatabase);
+			sqlite3CodeVerifySchema(pParse);
 		goto exit_drop_table;
 	}
 	iDb = sqlite3SchemaToIndex(db, pTab->pSchema);
@@ -3986,7 +3984,6 @@ sqlite3SrcListAppend(sqlite3 * db,	/* Connection to notify of malloc failures */
 		pTable = pTemp;
 	}
 	pItem->zName = sqlite3NameFromToken(db, pTable);
-	pItem->zDatabase = sqlite3NameFromToken(db, pDatabase);
 	return pList;
 }
 
@@ -4024,7 +4021,6 @@ sqlite3SrcListDelete(sqlite3 * db, SrcList * pList)
 	if (pList == 0)
 		return;
 	for (pItem = pList->a, i = 0; i < pList->nSrc; i++, pItem++) {
-		sqlite3DbFree(db, pItem->zDatabase);
 		sqlite3DbFree(db, pItem->zName);
 		sqlite3DbFree(db, pItem->zAlias);
 		if (pItem->fg.isIndexedBy)
@@ -4270,17 +4266,6 @@ sqlite3CodeVerifySchema(Parse * pParse)
 	if (DbMaskTest(pToplevel->cookieMask, 0) == 0) {
 		DbMaskSet(pToplevel->cookieMask, 0);
 	}
-}
-
-/*
- * If argument zDb is NULL, then call sqlite3CodeVerifySchema() for each
- * attached database. Otherwise, invoke it for the database named zDb only.
- */
-void
-sqlite3CodeVerifyNamedSchema(Parse * pParse, const char *zDb)
-{
-	assert(sqlite3_stricmp("main", zDb) == 0 || zDb == 0);
-	sqlite3CodeVerifySchema(pParse);
 }
 
 /*

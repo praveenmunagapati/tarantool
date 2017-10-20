@@ -119,7 +119,6 @@ sqlite3MaterializeView(Parse * pParse,	/* Parsing context */
 	if (pFrom) {
 		assert(pFrom->nSrc == 1);
 		pFrom->a[0].zName = sqlite3DbStrDup(db, pView->zName);
-		pFrom->a[0].zDatabase = sqlite3DbStrDup(db, db->mdb.zDbSName);
 		assert(pFrom->a[0].pOn == 0);
 		assert(pFrom->a[0].pUsing == 0);
 	}

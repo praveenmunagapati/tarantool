@@ -132,8 +132,7 @@ sqlite3AuthReadCol(Parse * pParse,	/* The parser context */
     )
 {
 	sqlite3 *db = pParse->db;	/* Database handle */
-	char *zDb = db->mdb.zDbSName;	/* Schema name of attached database */
-	int rc;			/* Auth callback return code */
+	int rc;			        /* Auth callback return code */
 
 	if (db->init.busy)
 		return SQLITE_OK;

@@ -4005,10 +4005,8 @@ flattenSubquery(Parse * pParse,		/* Parsing context */
 	/* Delete the transient table structure associated with the
 	 * subquery
 	 */
-	sqlite3DbFree(db, pSubitem->zDatabase);
 	sqlite3DbFree(db, pSubitem->zName);
 	sqlite3DbFree(db, pSubitem->zAlias);
-	pSubitem->zDatabase = 0;
 	pSubitem->zName = 0;
 	pSubitem->zAlias = 0;
 	pSubitem->pSelect = 0;
@@ -4499,7 +4497,7 @@ searchWith(With * pWith,		/* Current innermost WITH clause */
 	   With ** ppContext)		/* OUT: WITH clause return value belongs to */
 {
 	const char *zName;
-	if (pItem->zDatabase == 0 && (zName = pItem->zName) != 0) {
+	if ((zName = pItem->zName) != 0) {
 		With *p;
 		for (p = pWith; p; p = p->pOuter) {
 			int i;
@@ -4606,8 +4604,7 @@ withExpand(Walker * pWalker, struct SrcList_item *pFrom)
 			SrcList *pSrc = pFrom->pSelect->pSrc;
 			for (i = 0; i < pSrc->nSrc; i++) {
 				struct SrcList_item *pItem = &pSrc->a[i];
-				if (pItem->zDatabase == 0
-				    && pItem->zName != 0
+				if (pItem->zName != 0
 				    && 0 == sqlite3StrICmp(pItem->zName,
 							   pCte->zName)
 				    ) {
@@ -4931,7 +4928,7 @@ selectExpander(Walker * pWalker, Select * p)
 									 pTab->pSchema);
 						zSchemaName =
 						    iDb ==
-						    0 ? db->mdb.zDbSName : 0;
+						    0 ? "main" : 0;
 					}
 					for (j = 0; j < pTab->nCol; j++) {
 						char *zName =

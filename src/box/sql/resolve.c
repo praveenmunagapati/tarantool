@@ -211,7 +211,6 @@ sqlite3MatchSpanName(const char *zSpan,
  */
 static int
 lookupName(Parse * pParse,	/* The parsing context */
-	   const char *zDb,	/* Name of the database containing table, or NULL */
 	   const char *zTab,	/* Name of table containing column, or NULL */
 	   const char *zCol,	/* Name of the column. */
 	   NameContext * pNC,	/* The name context used to resolve the name */
@@ -240,32 +239,6 @@ lookupName(Parse * pParse,	/* The parsing context */
 	pExpr->pTab = 0;
 	ExprSetVVAProperty(pExpr, EP_NoReduce);
 
-	/* Translate the schema name in zDb into a pointer to the corresponding
-	 * schema.  If not found, pSchema will remain NULL and nothing will match
-	 * resulting in an appropriate error message toward the end of this routine
-	 */
-	if (zDb) {
-		testcase(pNC->ncFlags & NC_PartIdx);
-		testcase(pNC->ncFlags & NC_IsCheck);
-		if ((pNC->ncFlags & (NC_PartIdx | NC_IsCheck)) != 0) {
-			/* Silently ignore database qualifiers inside CHECK constraints and
-			 * partial indices.  Do not raise errors because that might break
-			 * legacy and because it does not hurt anything to just ignore the
-			 * database name.
-			 */
-			zDb = 0;
-		} else {
-			assert(db->mdb.zDbSName);
-			/* TODO: forbit names like db_name.column_names */
-			if (sqlite3StrICmp(db->mdb.zDbSName, zDb) != 0) {
-				cnt = 0;
-				cntTab = 0;
-				goto lookup_error;
-			}
-			pSchema = db->mdb.pSchema;
-		}
-	}
-
 	/* Start at the inner-most context and move outward until a match is found */
 	while (pNC && cnt == 0) {
 		ExprList *pEList;
@@ -285,7 +258,7 @@ lookupName(Parse * pParse,	/* The parsing context */
 					for (j = 0; j < pEList->nExpr; j++) {
 						if (sqlite3MatchSpanName
 						    (pEList->a[j].zSpan, zCol,
-						     zTab, zDb)) {
+						     zTab, 0)) {
 							cnt++;
 							cntTab = 2;
 							pMatch = pItem;
@@ -295,9 +268,6 @@ lookupName(Parse * pParse,	/* The parsing context */
 					}
 					if (hit || zTab == 0)
 						continue;
-				}
-				if (zDb && pTab->pSchema != pSchema) {
-					continue;
 				}
 				if (zTab) {
 					const char *zTabName =
@@ -355,7 +325,7 @@ lookupName(Parse * pParse,	/* The parsing context */
 		/* If we have not already resolved the name, then maybe
 		 * it is a new.* or old.* trigger argument reference
 		 */
-		if (zDb == 0 && zTab != 0 && cntTab == 0
+		if (zTab != 0 && cntTab == 0
 		    && pParse->pTriggerTab != 0) {
 			int op = pParse->eTriggerOp;
 			assert(op == TK_DELETE || op == TK_UPDATE
@@ -476,7 +446,7 @@ lookupName(Parse * pParse,	/* The parsing context */
 						     "", nSubquery);
 					cnt = 1;
 					pMatch = 0;
-					assert(zTab == 0 && zDb == 0);
+					assert(zTab == 0);
 					goto lookupname_end;
 				}
 			}
@@ -495,14 +465,10 @@ lookupName(Parse * pParse,	/* The parsing context */
 	 * cnt==0 means there was not match.  cnt>1 means there were two or
 	 * more matches.  Either way, we have an error.
 	 */
- lookup_error:
 	if (cnt != 1) {
 		const char *zErr;
 		zErr = cnt == 0 ? "no such column" : "ambiguous column name";
-		if (zDb) {
-			sqlite3ErrorMsg(pParse, "%s: %s.%s.%s", zErr, zDb, zTab,
-					zCol);
-		} else if (zTab) {
+		if (zTab) {
 			sqlite3ErrorMsg(pParse, "%s: %s.%s", zErr, zTab, zCol);
 		} else {
 			sqlite3ErrorMsg(pParse, "%s: %s", zErr, zCol);
@@ -684,7 +650,7 @@ resolveExprStep(Walker * pWalker, Expr * pExpr)
 		/* A lone identifier is the name of a column.
 		 */
 	case TK_ID:{
-			return lookupName(pParse, 0, 0, pExpr->u.zToken, pNC,
+			return lookupName(pParse, 0, pExpr->u.zToken, pNC,
 					  pExpr);
 		}
 
@@ -694,23 +660,20 @@ resolveExprStep(Walker * pWalker, Expr * pExpr)
 	case TK_DOT:{
 			const char *zColumn;
 			const char *zTable;
-			const char *zDb;
 			Expr *pRight;
 
 			/* if( pSrcList==0 ) break; */
 			notValid(pParse, pNC, "the \".\" operator", NC_IdxExpr);
 			pRight = pExpr->pRight;
 			if (pRight->op == TK_ID) {
-				zDb = 0;
 				zTable = pExpr->pLeft->u.zToken;
 				zColumn = pRight->u.zToken;
 			} else {
 				assert(pRight->op == TK_DOT);
-				zDb = pExpr->pLeft->u.zToken;
 				zTable = pRight->pLeft->u.zToken;
 				zColumn = pRight->pRight->u.zToken;
 			}
-			return lookupName(pParse, zDb, zTable, zColumn, pNC,
+			return lookupName(pParse, zTable, zColumn, pNC,
 					  pExpr);
 		}
 
