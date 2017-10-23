@@ -111,9 +111,8 @@ applier_writer_f(va_list ap)
 	while (!fiber_is_cancelled()) {
 		fiber_cond_wait_timeout(&applier->writer_cond,
 					applier_timeout);
-		/* Send ACKs only when in FINAL JOIN and FOLLOW modes */
-		if (applier->state != APPLIER_FOLLOW &&
-		    applier->state != APPLIER_FINAL_JOIN)
+		/* Send ACKs only when in FOLLOW mode. */
+		if (applier->state != APPLIER_FOLLOW)
 			continue;
 		try {
 			struct xrow_header xrow;
@@ -439,14 +438,15 @@ applier_subscribe(struct applier *applier)
 static inline void
 applier_disconnect(struct applier *applier, enum applier_state state)
 {
+	applier_set_state(applier, state);
 	if (applier->writer != NULL) {
 		fiber_cancel(applier->writer);
+		fiber_join(applier->writer);
 		applier->writer = NULL;
 	}
 
 	coio_close(loop(), &applier->io);
 	iobuf_reset(applier->iobuf);
-	applier_set_state(applier, state);
 	fiber_gc();
 }
 

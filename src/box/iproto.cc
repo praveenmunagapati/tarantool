@@ -709,6 +709,9 @@ iproto_decode_msg(struct iproto_msg *msg, const char **pos, const char *reqend,
 		xrow_decode_auth_xc(&msg->header, &msg->auth_request);
 		cmsg_init(msg, misc_route);
 		break;
+	case IPROTO_OK:
+		cmsg_init(msg, misc_route);
+		break;
 	default:
 		tnt_raise(ClientError, ER_UNKNOWN_REQUEST_TYPE,
 			  (uint32_t) type);
@@ -1078,6 +1081,8 @@ tx_process_misc(struct cmsg *m)
 		case IPROTO_PING:
 			iproto_reply_ok_xc(out, msg->header.sync,
 					   ::schema_version);
+			break;
+		case IPROTO_OK:
 			break;
 		default:
 			unreachable();
