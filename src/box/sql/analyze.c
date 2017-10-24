@@ -538,7 +538,7 @@ statInit(sqlite3_context * context, int argc, sqlite3_value ** argv)
 
 static const FuncDef statInitFuncdef = {
 	2 + IsStat34,		/* nArg */
-	SQLITE_UTF8,		/* funcFlags */
+	0,			/* funcFlags */
 	0,			/* pUserData */
 	0,			/* pNext */
 	statInit,		/* xSFunc */
@@ -848,7 +848,7 @@ statPush(sqlite3_context * context, int argc, sqlite3_value ** argv)
 
 static const FuncDef statPushFuncdef = {
 	2 + IsStat34,		/* nArg */
-	SQLITE_UTF8,		/* funcFlags */
+	0,			/* funcFlags */
 	0,			/* pUserData */
 	0,			/* pNext */
 	statPush,		/* xSFunc */
@@ -996,7 +996,7 @@ UNUSED_PARAMETER(argc);
 
 static const FuncDef statGetFuncdef = {
 	1 + IsStat34,		/* nArg */
-	SQLITE_UTF8,		/* funcFlags */
+	0,			/* funcFlags */
 	0,			/* pUserData */
 	0,			/* pNext */
 	statGet,		/* xSFunc */
