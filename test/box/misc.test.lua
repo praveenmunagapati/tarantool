@@ -297,3 +297,14 @@ not not s:create_index('test2', {parts = {{2, 'unsigned', collation = 'unicode_s
 not not s:create_index('test3', {parts = {{3, 'integer', collation = 'unicode_s1'}}})
 not not s:create_index('test4', {parts = {{4, 'boolean', collation = 'unicode_s1'}}})
 s:drop()
+
+-- one more way to declare index parts
+s = box.schema.space.create('test')
+i = s:create_index('test1', {parts = {{1, 'unsigned'}}})
+i = s:create_index('test2', {parts = {{2, 'string', is_nullable = true, collation = 'unicode'}}})
+i.parts[1].is_nullable
+i.parts[1].collation
+i = s:create_index('test3', {parts = {3, 'string', is_nullable = true, collation = 'unicode'}})
+i.parts[1].is_nullable
+i.parts[1].collation
+s:drop()
