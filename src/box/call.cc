@@ -43,8 +43,8 @@
 #include "rmean.h"
 #include "small/obuf.h"
 
-static inline struct func *
-access_check_func(const char *name, uint32_t name_len)
+static inline struct error *
+access_check_func(const char *name, uint32_t name_len, struct func ** funcp)
 {
 	struct func *func = func_by_name(name, name_len);
 	struct credentials *credentials = current_user();
@@ -53,20 +53,21 @@ access_check_func(const char *name, uint32_t name_len)
 	 * No special check for ADMIN user is necessary
 	 * since ADMIN has universal access.
 	 */
-	if ((credentials->universal_access & PRIV_ALL) == PRIV_ALL)
-		return func;
-	uint8_t access = PRIV_X & ~credentials->universal_access;
-	if (func == NULL || (((func->def->uid != credentials->uid &&
-	     access & ~func->access[credentials->auth_token].effective)))) {
-		/* Access violation, report error. */
-		struct user *user = user_find_xc(credentials->uid);
-		diag_set(ClientError, ER_FUNCTION_ACCESS_DENIED,
-			  priv_name(access), user->def->name,
-			  tt_cstr(name, name_len));
+	if ((credentials->universal_access & PRIV_ALL) == PRIV_ALL) {
+		*funcp = func;
 		return NULL;
 	}
 
-	return func;
+	uint8_t access = PRIV_X & ~credentials->universal_access;
+	if (func == NULL || (func->def->uid != credentials->uid &&
+	     access & ~func->access[credentials->auth_token].effective)) {
+		/* Access violation, report error. */
+		struct user *user = user_find_xc(credentials->uid);
+		return BuildClientError(__FILE__, __LINE__,  ER_FUNCTION_ACCESS_DENIED,
+			  priv_name(access), user->def->name, tt_cstr(name, name_len));
+	}
+	*funcp = func;
+	return NULL;
 }
 
 static int
@@ -138,17 +139,16 @@ box_func_reload(const char *name)
 	}
 	size_t name_len = strlen(name);
 
-	/** save old error */
-	error *old_error = diag_get()->last;
-	diag_get()->last = NULL;
-	struct func *func = access_check_func(name, name_len);
-	if (func == NULL) {
-		if (diag_is_empty(diag_get()))
-			diag_set(ClientError, ER_NO_SUCH_FUNCTION, name);
+	struct func *func = NULL;
+	struct error * err = NULL;
+	if ((err = access_check_func(name, name_len, &func)) != NULL) {
+		diag_add_error(diag_get(), err);
 		return -1;
 	}
-	/** recover error */
-	diag_get()->last = old_error;
+	if (func == NULL) {
+		diag_set(ClientError, ER_NO_SUCH_FUNCTION, name);
+		return -1;
+	}
 	if (func->def->language != FUNC_LANGUAGE_C || func->func == NULL)
 		return 0; /* Nothing to do */
 	if (func_reload(func) == 0)
@@ -168,19 +168,17 @@ box_process_call(struct call_request *request, struct obuf *out)
 	uint32_t name_len = mp_decode_strl(&name);
 
 	/** save old error */
-	error *old_error = diag_get()->last;
-	diag_get()->last = NULL;
-	struct func *func = access_check_func(name, name_len);
+	struct error *err = NULL;
+	struct func *func = NULL;
 	/**
 	 * Sic: func == NULL means that perhaps the user has a global
 	 * "EXECUTE" privilege, so no specific grant to a function.
 	 * But if error was created during function search, exception should be raised
 	 */
-	if (func == NULL && !diag_is_empty(diag_get())) {
+	if ((err = access_check_func(name, name_len, &func)) != NULL) {
+		diag_add_error(diag_get(), err);
 		diag_raise();
 	}
-	/** recover error */
-	diag_get()->last = old_error;
 	/**
 	 * Change the current user id if the function is
 	 * a set-definer-uid one. If the function is not
